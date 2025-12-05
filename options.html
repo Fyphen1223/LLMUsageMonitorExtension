@@ -97,6 +97,16 @@
     <div class="desc">1m³ (1000L) あたりの水道料金</div>
     <input type="number" id="yenPerM3" step="1">
   </div>
+	<!-- options.html の 既存の <div class="form-group"> の並びに追加 -->
+
+  <div class="form-group">
+    <label>🛑 エコ・ナッジ機能</label>
+    <div class="desc">「ありがとう」等の短いメッセージ入力時に警告を表示する</div>
+    <label style="display:flex; align-items:center; cursor:pointer;">
+      <input type="checkbox" id="enableNudge" style="width:auto; margin-right:10px;">
+      有効にする
+    </label>
+  </div>
 
   <button id="save">設定を保存</button>
   <div id="status"></div>
