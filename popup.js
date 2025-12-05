@@ -21,6 +21,42 @@ function updateUI() {
     const electricityWh = requests * config.whPerRequest;
     const electricityKwh = electricityWh / 1000;
     const co2Kg = electricityKwh * config.kgCo2PerKwh;
+
+	  const metaphorEl = document.getElementById('metaphor-text');
+    
+    // 比較データの定義 (出典や目安による概算)
+    // スマホ充電1回 ≒ 0.005 kWh ≒ 0.004 kg-CO2 と仮定
+    // LED電球(10W)1時間 ≒ 0.01 kWh ≒ 0.008 kg-CO2
+    // ガソリン車走行1km ≒ 0.13 kg-CO2
+    // 杉の木1本の年間吸収量 ≒ 14 kg-CO2 (1日あたり約0.038kg)
+    
+    let text = "まだ計測データが足りません";
+    const emoji = ["📱", "💡", "🚗", "🌲", "☕"];
+
+    if (co2Kg > 0) {
+      if (co2Kg < 0.01) {
+        // スマホ充電換算
+        const charges = (co2Kg / 0.004).toFixed(1);
+        text = `📱 スマホ充電 約 <b>${charges}</b> 回分`;
+      } else if (co2Kg < 0.1) {
+        // LED電球点灯時間
+        const hours = (co2Kg / 0.008).toFixed(1);
+        text = `💡 LED電球 約 <b>${hours}</b> 時間つけっぱなしと同じ`;
+      } else if (co2Kg < 1.0) {
+        // ガソリン車走行距離
+        const km = (co2Kg / 0.13).toFixed(2);
+        text = `🚗 ガソリン車で 約 <b>${km}km</b>走るのと同じ`;
+      } else {
+        // 杉の木の吸収量(日)
+        const days = (co2Kg / 0.038).toFixed(1);
+        text = `🌲 杉の木1本が <b>${days}日</b> かけて吸収する量`;
+      }
+    } else {
+      text = "🤖 AIを使って環境負荷を計測しましょう";
+    }
+    
+    metaphorEl.innerHTML = text;
+    // ▲▲▲ ここまで追加 ▲▲▲
     
     const waterPrice = waterLiters * (config.yenPerM3 / 1000);
     const elecPrice = electricityWh * (config.yenPerKwh / 1000);
