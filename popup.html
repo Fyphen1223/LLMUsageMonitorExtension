@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 340px;
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      padding: 15px;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      color: #2c3e50;
+    }
+    .header-icons {
+      display: flex;
+      gap: 10px;
+    }
+    .icon-btn {
+      cursor: pointer;
+      font-size: 18px;
+      color: #7f8c8d;
+      background: none;
+      border: none;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .icon-btn:hover {
+      color: #2980b9;
+    }
+    .stat-box {
+      background: #fff;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .label {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-bottom: 4px;
+    }
+    .value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #2980b9;
+    }
+    .eco-cost {
+      color: #e74c3c;
+    }
+    .price-tag {
+      font-size: 14px;
+      color: #27ae60;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    .note {
+      font-size: 10px;
+      color: #999;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+    button.reset {
+      background-color: #95a5a6;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 5px;
+      width: 100%;
+    }
+    button.reset:hover {
+      background-color: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>🤖 AI Eco Monitor</h2>
+    <div class="header-icons">
+      <button id="reload-btn" class="icon-btn" title="更新">↻</button>
+      <button id="settings-btn" class="icon-btn" title="設定">⚙️</button>
+    </div>
+  </div>
+
+  <div class="stat-box">
+    <div class="label">総リクエスト回数</div>
+    <div class="value" id="req-count">0</div>
+  </div>
+
+  <div class="stat-box">
+    <div class="label">推定総トークン数 (Input/Output)</div>
+    <div class="value" id="token-count">0</div>
+  </div>
+
+  <div class="stat-box">
+    <div class="label">☁️ 推定CO2排出量</div>
+    <div class="value eco-cost"><span id="co2-cost">0</span> kg</div>
+    <div class="note">
+      係数: <span id="lbl-co2">0.8</span> kg/kWh
+    </div>
+  </div>
+
+  <div class="stat-box">
+    <div class="label">💧 推定水消費量</div>
+    <div>
+      <span class="value eco-cost" id="water-cost">0</span> L
+      <span class="price-tag"> (約 <span id="water-price">0</span> 円)</span>
+    </div>
+    <div class="note">
+      単価: <span id="lbl-water-yen">200</span>円/m³<br>
+      消費: 1トークン <span id="lbl-water-ml">3.75</span>ml
+    </div>
+  </div>
+
+  <div class="stat-box">
+    <div class="label">⚡ 推定電力消費量</div>
+    <div>
+      <span class="value eco-cost" id="elec-cost">0</span> Wh
+      <span class="price-tag"> (約 <span id="elec-price">0</span> 円)</span>
+    </div>
+    <div class="note">
+      単価: <span id="lbl-elec-yen">24</span>円/kWh<br>
+      消費: 1リク <span id="lbl-elec-wh">18</span>Wh
+    </div>
+  </div>
+
+  <button id="reset-btn" class="reset">データをリセット</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>
