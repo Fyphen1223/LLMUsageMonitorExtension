@@ -5,152 +5,161 @@ const DEFAULTS = {
   mlPerToken: 3.75,
   kgCo2PerKwh: 0.800,
   yenPerKwh: 24,
-  yenPerM3: 200
+  yenPerM3: 200,
+  dailyLimitCo2: 10
 };
 
+function getTodayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getLast7DaysKeys() {
+  const keys = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    keys.push(`${year}-${month}-${day}`);
+  }
+  return keys;
+}
+
+function formatDateLabel(dateStr) {
+  const parts = dateStr.split('-');
+  return `${parts[1]}/${parts[2]}`;
+}
+
 function updateUI() {
-  chrome.storage.local.get(['totalRequests', 'totalTokens', 'totalAvoided', 'settings'], (result) => {
-    const requests = result.totalRequests || 0;
-    const tokens = result.totalTokens || 0;
+  // totalRequests と totalTokens も一緒に取得
+  chrome.storage.local.get(['dailyStats', 'totalRequests', 'totalTokens', 'totalAvoided', 'settings'], (result) => {
+    
+    // ★ここを修正: 計算ではなく、保存値を直接使う
+    const totalRequests = result.totalRequests || 0;
+    const totalTokens = result.totalTokens || 0;
+    
+    const dailyStats = result.dailyStats || {};
     const avoided = result.totalAvoided || 0;
     const userSettings = result.settings || {};
     const config = { ...DEFAULTS, ...userSettings };
 
-    // 計算
-    const waterLiters = (tokens * config.mlPerToken) / 1000;
-    const electricityWh = requests * config.whPerRequest;
+    // 今日のデータ（バジェット用）
+    const todayKey = getTodayKey();
+    const todayData = dailyStats[todayKey] || { requests: 0 };
+    const todayRequests = todayData.requests || 0;
+
+    // --- 全体のCO2・コスト計算 ---
+    const electricityWh = totalRequests * config.whPerRequest;
     const electricityKwh = electricityWh / 1000;
     const co2Kg = electricityKwh * config.kgCo2PerKwh;
-
-	  const metaphorEl = document.getElementById('metaphor-text');
     
-    // 比較データの定義 (出典や目安による概算)
-    // スマホ充電1回 ≒ 0.005 kWh ≒ 0.004 kg-CO2 と仮定
-    // LED電球(10W)1時間 ≒ 0.01 kWh ≒ 0.008 kg-CO2
-    // ガソリン車走行1km ≒ 0.13 kg-CO2
-    // 杉の木1本の年間吸収量 ≒ 14 kg-CO2 (1日あたり約0.038kg)
-    
-    let text = "まだ計測データが足りません";
-    const emoji = ["📱", "💡", "🚗", "🌲", "☕"];
-
-    if (co2Kg > 0) {
-      if (co2Kg < 0.01) {
-        // スマホ充電換算
-        const charges = (co2Kg / 0.004).toFixed(1);
-        text = `📱 スマホ充電 約 <b>${charges}</b> 回分`;
-      } else if (co2Kg < 0.1) {
-        // LED電球点灯時間
-        const hours = (co2Kg / 0.008).toFixed(1);
-        text = `💡 LED電球 約 <b>${hours}</b> 時間つけっぱなしと同じ`;
-      } else if (co2Kg < 1.0) {
-        // ガソリン車走行距離
-        const km = (co2Kg / 0.13).toFixed(2);
-        text = `🚗 ガソリン車で 約 <b>${km}km</b>走るのと同じ`;
-      } else {
-        // 杉の木の吸収量(日)
-        const days = (co2Kg / 0.038).toFixed(1);
-        text = `🌲 杉の木1本が <b>${days}日</b> かけて吸収する量`;
-      }
-    } else {
-      text = "🤖 AIを使って環境負荷を計測しましょう";
-    }
-    
-    metaphorEl.innerHTML = text;
-    // ▲▲▲ ここまで追加 ▲▲▲
-    
+    const waterLiters = (totalTokens * config.mlPerToken) / 1000;
     const waterPrice = waterLiters * (config.yenPerM3 / 1000);
     const elecPrice = electricityWh * (config.yenPerKwh / 1000);
 
     const savedWh = avoided * config.whPerRequest;
-    const savedKwh = savedWh / 1000;
-    const savedCo2 = savedKwh * config.kgCo2PerKwh;
+    const savedCo2 = (savedWh / 1000) * config.kgCo2PerKwh;
 
-    // DOM更新
-    document.getElementById('avoided-count').textContent = avoided.toLocaleString();
-    document.getElementById('saved-wh').textContent = savedWh.toLocaleString();
-    document.getElementById('saved-co2').textContent = savedCo2.toFixed(3);
-
-    document.getElementById('req-count').textContent = requests.toLocaleString();
-    document.getElementById('token-count').textContent = tokens.toLocaleString();
+    // --- 機能1: エコ・バジェット (今日の進捗) ---
+    const todayWh = todayRequests * config.whPerRequest;
+    const todayCo2Kg = (todayWh / 1000) * config.kgCo2PerKwh;
+    const todayCo2Grams = todayCo2Kg * 1000;
+    const limitGrams = config.dailyLimitCo2;
     
+    let percent = (todayCo2Grams / limitGrams) * 100;
+    if (percent > 100) percent = 100;
+
+    document.getElementById('budget-percent').textContent = percent.toFixed(0);
+    document.getElementById('budget-limit-val').textContent = limitGrams;
+    const bar = document.getElementById('budget-bar');
+    bar.style.width = `${percent}%`;
+    if (percent < 50) bar.style.background = 'linear-gradient(90deg, #2ecc71, #27ae60)';
+    else if (percent < 80) bar.style.background = 'linear-gradient(90deg, #f1c40f, #f39c12)';
+    else bar.style.background = 'linear-gradient(90deg, #e74c3c, #c0392b)';
+
+    // --- 機能2: 日次グラフ ---
+    const graphContainer = document.getElementById('daily-graph');
+    graphContainer.innerHTML = '';
+    const last7Days = getLast7DaysKeys();
+    let maxReq = 0;
+    
+    // グラフの最大値計算
+    last7Days.forEach(key => {
+      if (dailyStats[key] && dailyStats[key].requests > maxReq) maxReq = dailyStats[key].requests;
+    });
+    if (maxReq < 10) maxReq = 10;
+
+    last7Days.forEach(key => {
+      const data = dailyStats[key] || { requests: 0 };
+      const req = data.requests;
+      const heightPercent = (req / maxReq) * 100;
+      
+      const barGroup = document.createElement('div');
+      barGroup.className = 'bar-group';
+      
+      const barDiv = document.createElement('div');
+      barDiv.className = 'bar';
+      if (key === todayKey) barDiv.classList.add('today-bar');
+      barDiv.style.height = `${Math.max(heightPercent, 2)}%`;
+      barDiv.title = `${key}: ${req} requests`;
+
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'bar-label';
+      labelDiv.textContent = formatDateLabel(key);
+
+      barGroup.appendChild(barDiv);
+      barGroup.appendChild(labelDiv);
+      graphContainer.appendChild(barGroup);
+    });
+
+    // --- メイン数値表示 ---
+    document.getElementById('req-count').textContent = totalRequests.toLocaleString();
+    document.getElementById('token-count').textContent = totalTokens.toLocaleString();
     document.getElementById('co2-cost').textContent = co2Kg.toFixed(3);
+    document.getElementById('avoided-count').textContent = avoided.toLocaleString();
+    document.getElementById('saved-co2').textContent = savedCo2.toFixed(3);
+    
     document.getElementById('water-cost').textContent = waterLiters.toFixed(2);
     document.getElementById('elec-cost').textContent = electricityWh.toLocaleString();
-
     document.getElementById('water-price').textContent = waterPrice.toFixed(2);
     document.getElementById('elec-price').textContent = elecPrice.toFixed(2);
 
-    // 設定値表示 (存在する場合のみ)
-    if(document.getElementById('lbl-co2')) document.getElementById('lbl-co2').textContent = config.kgCo2PerKwh;
+    // --- 例え表示 ---
+    const metaphorEl = document.getElementById('metaphor-text');
+    if (co2Kg < 0.01) metaphorEl.innerHTML = `📱 スマホ充電 ${(co2Kg/0.004).toFixed(1)}回分`;
+    else if (co2Kg < 1.0) metaphorEl.innerHTML = `🚗 ガソリン車 ${(co2Kg/0.13).toFixed(2)}km分`;
+    else metaphorEl.innerHTML = `🌲 杉の木吸収 ${(co2Kg/0.038).toFixed(1)}日分`;
+
   });
 }
 
 document.addEventListener('DOMContentLoaded', updateUI);
-
-// 更新ボタン
-document.getElementById('reload-btn').addEventListener('click', () => {
-  updateUI();
-  const btn = document.getElementById('reload-btn');
-  btn.style.transform = 'rotate(360deg)';
-  btn.style.transition = 'transform 0.4s ease';
-  setTimeout(() => {
-    btn.style.transform = 'none';
-    btn.style.transition = 'none';
-  }, 400);
-});
-
-// 設定ボタン
+document.getElementById('reload-btn').addEventListener('click', updateUI);
 document.getElementById('settings-btn').addEventListener('click', () => {
-  if (chrome.runtime.openOptionsPage) {
-    chrome.runtime.openOptionsPage().catch(() => {
-      chrome.tabs.create({ url: 'options.html' });
-    });
-  } else {
-    chrome.tabs.create({ url: 'options.html' });
-  }
+  if (chrome.runtime.openOptionsPage) chrome.runtime.openOptionsPage().catch(() => chrome.tabs.create({ url: 'options.html' }));
+  else chrome.tabs.create({ url: 'options.html' });
 });
-
-// リセットボタン
 document.getElementById('reset-btn').addEventListener('click', () => {
-  if (confirm('統計データをリセットしますか？')) {
-    chrome.storage.local.set({
-      totalRequests: 0,
-      totalTokens: 0,
-      totalAvoided: 0
-    }, updateUI);
+  if (confirm('全ての履歴データをリセットしますか？')) {
+    chrome.storage.local.set({ dailyStats: {}, totalAvoided: 0, totalRequests: 0, totalTokens: 0 }, updateUI);
   }
 });
-
-// ▼▼▼ 画像保存機能 (PNG Export) ▼▼▼
 document.getElementById('share-btn').addEventListener('click', () => {
   const target = document.getElementById('capture-area');
-  
-  // ボタンの文字を一時的に変更
   const btn = document.getElementById('share-btn');
   const originalText = btn.innerHTML;
-  btn.innerHTML = '📸 生成中...';
+  btn.innerHTML = '📸...';
   btn.disabled = true;
-
-  html2canvas(target, {
-    scale: 2, // 高解像度で出力
-    backgroundColor: "#f4f7f6", // 背景色を指定
-    ignoreElements: (element) => {
-      // data-html2canvas-ignore 属性がある要素は除外
-      return element.hasAttribute('data-html2canvas-ignore');
-    }
-  }).then(canvas => {
-    // ダウンロードリンクを作成
+  html2canvas(target, { scale: 2, backgroundColor: "#f4f7f6", ignoreElements: (el) => el.hasAttribute('data-html2canvas-ignore') }).then(canvas => {
     const link = document.createElement('a');
-    link.download = `ai-eco-stats_${new Date().toISOString().slice(0,10)}.png`;
+    link.download = `eco-monitor_${getTodayKey()}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-
-    // ボタンを元に戻す
-    btn.innerHTML = originalText;
-    btn.disabled = false;
-  }).catch(err => {
-    console.error('Capture failed:', err);
-    alert('画像の生成に失敗しました');
     btn.innerHTML = originalText;
     btn.disabled = false;
   });

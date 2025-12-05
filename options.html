@@ -4,108 +4,60 @@
   <meta charset="UTF-8">
   <title>AI Eco Monitor 設定</title>
   <style>
-    body {
-      font-family: "Helvetica Neue", Arial, sans-serif;
-      background-color: #f9f9f9;
-      color: #333;
-      padding: 20px;
-      max-width: 500px;
-      margin: 0 auto;
-    }
-    h2 {
-      border-bottom: 2px solid #ddd;
-      padding-bottom: 10px;
-      color: #2c3e50;
-    }
-    .form-group {
-      background: #fff;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    label {
-      display: block;
-      font-weight: bold;
-      margin-bottom: 5px;
-      color: #34495e;
-    }
-    .desc {
-      font-size: 12px;
-      color: #7f8c8d;
-      margin-bottom: 8px;
-    }
-    input[type="number"] {
-      width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    button {
-      background-color: #2980b9;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-      width: 100%;
-    }
-    button:hover {
-      background-color: #1a5276;
-    }
-    #status {
-      margin-top: 10px;
-      text-align: center;
-      color: #27ae60;
-      font-weight: bold;
-      height: 20px;
-    }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px; max-width: 500px; margin: 0 auto; }
+    h2 { border-bottom: 2px solid #ddd; padding-bottom: 10px; color: #2c3e50; }
+    .form-group { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    label { display: block; font-weight: bold; margin-bottom: 5px; color: #34495e; }
+    .desc { font-size: 12px; color: #7f8c8d; margin-bottom: 8px; }
+    input[type="number"], input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    button { background-color: #2980b9; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; }
+    button:hover { background-color: #1a5276; }
+    #status { margin-top: 10px; text-align: center; color: #27ae60; font-weight: bold; height: 20px; }
   </style>
 </head>
 <body>
   <h2>⚙️ 設定</h2>
 
   <div class="form-group">
-    <label>⚡ 電力消費係数 (Wh)</label>
-    <div class="desc">1リクエストあたりの推定消費電力</div>
-    <input type="number" id="whPerRequest" step="0.1">
+    <label>🌱 Auto Concise ボタン</label>
+    <div class="desc">ボタンを押した時に追加される「簡潔化プロンプト」</div>
+    <input type="text" id="conciseText" placeholder="例: Please be concise to save energy.">
   </div>
 
   <div class="form-group">
-    <label>💧 水消費係数 (ml)</label>
-    <div class="desc">1トークンあたりの推定水消費量</div>
-    <input type="number" id="mlPerToken" step="0.01">
+    <label>🎯 1日のCO2排出目標 (g)</label>
+    <div class="desc">エコ・バジェットの上限値（デフォルト: 10g）</div>
+    <input type="number" id="dailyLimitCo2" step="1">
   </div>
-
-  <div class="form-group">
-    <label>☁️ CO2排出係数 (kg/kWh)</label>
-    <div class="desc">1kWhあたりのCO2排出量</div>
-    <input type="number" id="kgCo2PerKwh" step="0.001">
-  </div>
-
-  <div class="form-group">
-    <label>💴 電気代単価 (円/kWh)</label>
-    <div class="desc">1kWhあたりの電気料金</div>
-    <input type="number" id="yenPerKwh" step="0.1">
-  </div>
-
-  <div class="form-group">
-    <label>💴 水道代単価 (円/m³)</label>
-    <div class="desc">1m³ (1000L) あたりの水道料金</div>
-    <input type="number" id="yenPerM3" step="1">
-  </div>
-	<!-- options.html の 既存の <div class="form-group"> の並びに追加 -->
 
   <div class="form-group">
     <label>🛑 エコ・ナッジ機能</label>
-    <div class="desc">「ありがとう」等の短いメッセージ入力時に警告を表示する</div>
+    <div class="desc">無駄なメッセージ入力時に警告を表示する</div>
     <label style="display:flex; align-items:center; cursor:pointer;">
       <input type="checkbox" id="enableNudge" style="width:auto; margin-right:10px;">
       有効にする
     </label>
+  </div>
+
+  <div class="form-group">
+    <label>⚡ 電力消費係数 (Wh)</label>
+    <input type="number" id="whPerRequest" step="0.1">
+  </div>
+  <div class="form-group">
+    <label>💧 水消費係数 (ml)</label>
+    <input type="number" id="mlPerToken" step="0.01">
+  </div>
+  <div class="form-group">
+    <label>☁️ CO2排出係数 (kg/kWh)</label>
+    <input type="number" id="kgCo2PerKwh" step="0.001">
+  </div>
+  <div class="form-group">
+    <label>💴 電気代単価 (円/kWh)</label>
+    <input type="number" id="yenPerKwh" step="0.1">
+  </div>
+  <div class="form-group">
+    <label>💴 水道代単価 (円/m³)</label>
+    <input type="number" id="yenPerM3" step="1">
   </div>
 
   <button id="save">設定を保存</button>

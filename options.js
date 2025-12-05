@@ -6,7 +6,9 @@ const DEFAULTS = {
   kgCo2PerKwh: 0.800,
   yenPerKwh: 24,
   yenPerM3: 200,
-  enableNudge: true // デフォルトで有効
+  enableNudge: true,
+  dailyLimitCo2: 10,
+  conciseText: "Please be concise to save energy." // デフォルト文言
 };
 
 function saveOptions() {
@@ -16,8 +18,11 @@ function saveOptions() {
     kgCo2PerKwh: parseFloat(document.getElementById('kgCo2PerKwh').value),
     yenPerKwh: parseFloat(document.getElementById('yenPerKwh').value),
     yenPerM3: parseFloat(document.getElementById('yenPerM3').value),
-    // チェックボックスの状態を保存
-    enableNudge: document.getElementById('enableNudge').checked
+    enableNudge: document.getElementById('enableNudge').checked,
+    dailyLimitCo2: parseFloat(document.getElementById('dailyLimitCo2').value),
+    
+    // ▼ 新規追加
+    conciseText: document.getElementById('conciseText').value
   };
 
   chrome.storage.local.set({ settings: settings }, () => {
@@ -29,17 +34,18 @@ function saveOptions() {
 
 function restoreOptions() {
   chrome.storage.local.get('settings', (result) => {
-    const settings = result.settings || DEFAULTS; // userSettingsのマージロジックは簡易化
+    const settings = result.settings || DEFAULTS;
 
-    // 数値の復元
     document.getElementById('whPerRequest').value = settings.whPerRequest ?? DEFAULTS.whPerRequest;
     document.getElementById('mlPerToken').value = settings.mlPerToken ?? DEFAULTS.mlPerToken;
     document.getElementById('kgCo2PerKwh').value = settings.kgCo2PerKwh ?? DEFAULTS.kgCo2PerKwh;
     document.getElementById('yenPerKwh').value = settings.yenPerKwh ?? DEFAULTS.yenPerKwh;
     document.getElementById('yenPerM3').value = settings.yenPerM3 ?? DEFAULTS.yenPerM3;
-    
-    // チェックボックスの復元
     document.getElementById('enableNudge').checked = settings.enableNudge ?? DEFAULTS.enableNudge;
+    document.getElementById('dailyLimitCo2').value = settings.dailyLimitCo2 ?? DEFAULTS.dailyLimitCo2;
+    
+    // ▼ 新規追加
+    document.getElementById('conciseText').value = settings.conciseText ?? DEFAULTS.conciseText;
   });
 }
 
