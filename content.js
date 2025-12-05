@@ -16,6 +16,11 @@ const SITES = {
     domain: 'gemini.google.com',
     userMessageSelector: '.user-query',
     aiMessageSelector: '.model-response'
+  },
+  aistudio: {
+    domain: 'aistudio.google.com',
+    userMessageSelector: 'textarea', 
+    aiMessageSelector: 'ms-markdown' 
   }
 };
 
@@ -26,6 +31,7 @@ let currentSite = null;
 if (currentHost.includes('chatgpt')) currentSite = SITES.chatgpt;
 else if (currentHost.includes('claude')) currentSite = SITES.claude;
 else if (currentHost.includes('gemini')) currentSite = SITES.gemini;
+else if (currentHost.includes('aistudio')) currentSite = SITES.aistudio;
 
 const elementTokenCounts = new WeakMap();
 
@@ -39,13 +45,11 @@ let saveIntervalId = null;
  */
 function estimateTokens(text) {
   if (!text) return 0;
-  // script/styleタグ等の混入を防ぐため、単純なカウントに留める
   let tokenCount = 0;
   const asciiMatches = text.match(/[\x00-\x7F]/g);
   const asciiCount = asciiMatches ? asciiMatches.length : 0;
   const nonAsciiCount = text.length - asciiCount;
   
-  // 英数:0.25トークン、その他:1トークン
   tokenCount = (asciiCount / 4) + nonAsciiCount;
   return Math.ceil(tokenCount);
 }
@@ -64,11 +68,7 @@ function queueStats(reqDelta, tokenDelta) {
 function flushStats() {
   if (pendingRequests === 0 && pendingTokens === 0) return;
 
-  // 【修正】APIが使用可能か厳密にチェック
-  // 拡張機能の更新直後などで接続が切れている場合は処理を中断
   if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-    // console.warn("[AI Eco Monitor] Storage connection lost. Waiting for reload...");
-    // 接続切れの場合はインターバルを停止してエラーの連発を防ぐ
     if (saveIntervalId) clearInterval(saveIntervalId);
     return;
   }
@@ -76,17 +76,12 @@ function flushStats() {
   const reqToAdd = pendingRequests;
   const tokensToAdd = pendingTokens;
 
-  // バッファをリセット
   pendingRequests = 0;
   pendingTokens = 0;
 
   try {
     chrome.storage.local.get(['totalRequests', 'totalTokens'], (result) => {
-      // コールバック内でランタイムエラーチェック
-      if (chrome.runtime.lastError) {
-        console.warn("[AI Eco Monitor] Storage error:", chrome.runtime.lastError);
-        return;
-      }
+      if (chrome.runtime.lastError) return;
 
       const data = result || {};
       const currentRequests = data.totalRequests || 0;
@@ -96,30 +91,28 @@ function flushStats() {
         totalRequests: currentRequests + reqToAdd,
         totalTokens: currentTokens + tokensToAdd
       }, () => {
-        // 保存後のエラーチェック
-        if (chrome.runtime.lastError) {
-           // 無視（リロード時によくあるため）
-        } else {
+        if (!chrome.runtime.lastError) {
            console.log(`[AI Eco Monitor] Saved: +${reqToAdd} req, +${tokensToAdd} tokens`);
         }
       });
     });
   } catch (e) {
-    // 万が一の例外キャッチ
-    console.error("[AI Eco Monitor] Save failed:", e);
     if (saveIntervalId) clearInterval(saveIntervalId);
   }
 }
 
-// 2秒ごとに保存を実行
 saveIntervalId = setInterval(flushStats, 2000);
 
 /**
  * ノード処理
  */
 function processNode(element, type) {
-  // textContentを使って非表示テキスト（Thinking等）も取得
-  const text = element.textContent;
+  // textareaの場合は value を、それ以外は textContent を参照
+  let text = element.textContent;
+  if (element.tagName === 'TEXTAREA') {
+    text = element.value;
+  }
+
   if (!text) return;
 
   const currentCount = estimateTokens(text);
@@ -141,16 +134,15 @@ function processNode(element, type) {
 // --- DOM監視 ---
 const observer = new MutationObserver((mutations) => {
   if (!currentSite) return;
-
-  // 拡張機能コンテキストが無効なら停止
   if (typeof chrome === 'undefined' || !chrome.runtime?.id) {
     observer.disconnect();
     return;
   }
 
   mutations.forEach((mutation) => {
+    // 1. 追加ノードの処理
     mutation.addedNodes.forEach((node) => {
-      if (node.nodeType !== 1) return;
+      if (node.nodeType !== 1) return; // 要素以外は無視
       
       if (node.matches && node.matches(currentSite.userMessageSelector)) processNode(node, 'user');
       node.querySelectorAll(currentSite.userMessageSelector).forEach(el => processNode(el, 'user'));
@@ -159,10 +151,16 @@ const observer = new MutationObserver((mutations) => {
       node.querySelectorAll(currentSite.aiMessageSelector).forEach(el => processNode(el, 'ai'));
     });
 
+    // 2. 変更検知の処理
     let target = mutation.target;
-    if (target.nodeType === 3) target = target.parentElement;
+    
+    // テキストノードなら親要素を取得
+    if (target.nodeType === 3) {
+      target = target.parentElement;
+    }
 
-    if (target) {
+    // 【修正】ターゲットが存在し、かつ「要素(Type 1)」である場合のみ closest を実行
+    if (target && target.nodeType === 1) {
       const userMsg = target.closest(currentSite.userMessageSelector);
       if (userMsg) processNode(userMsg, 'user');
 
@@ -187,7 +185,9 @@ function startMonitoring() {
   observer.observe(targetNode, {
     childList: true,
     subtree: true,
-    characterData: true
+    characterData: true,
+    attributes: true, // textareaの値変化検知用に追加
+    attributeFilter: ['value']
   });
 }
 
