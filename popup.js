@@ -10,39 +10,30 @@ const DEFAULTS = {
 
 function updateUI() {
   chrome.storage.local.get(['totalRequests', 'totalTokens', 'totalAvoided', 'settings'], (result) => {
-    
     const requests = result.totalRequests || 0;
     const tokens = result.totalTokens || 0;
-    const avoided = result.totalAvoided || 0; // 回避回数
-
+    const avoided = result.totalAvoided || 0;
     const userSettings = result.settings || {};
     const config = { ...DEFAULTS, ...userSettings };
 
-    // --- 通常の消費量計算 ---
+    // 計算
     const waterLiters = (tokens * config.mlPerToken) / 1000;
     const electricityWh = requests * config.whPerRequest;
     const electricityKwh = electricityWh / 1000;
     const co2Kg = electricityKwh * config.kgCo2PerKwh;
-
+    
     const waterPrice = waterLiters * (config.yenPerM3 / 1000);
     const elecPrice = electricityWh * (config.yenPerKwh / 1000);
 
-    // --- 削減量の計算（Saved） ---
-    // 1回回避 = 1リクエスト分の電力とCO2を削減できたとみなす
-    // ※トークン数はメッセージによって異なるため、計算には含めずリクエスト単位で算出
     const savedWh = avoided * config.whPerRequest;
     const savedKwh = savedWh / 1000;
     const savedCo2 = savedKwh * config.kgCo2PerKwh;
 
-
-    // --- DOM更新 ---
-
-    // 削減実績エリア
+    // DOM更新
     document.getElementById('avoided-count').textContent = avoided.toLocaleString();
     document.getElementById('saved-wh').textContent = savedWh.toLocaleString();
     document.getElementById('saved-co2').textContent = savedCo2.toFixed(3);
 
-    // 通常エリア
     document.getElementById('req-count').textContent = requests.toLocaleString();
     document.getElementById('token-count').textContent = tokens.toLocaleString();
     
@@ -53,17 +44,14 @@ function updateUI() {
     document.getElementById('water-price').textContent = waterPrice.toFixed(2);
     document.getElementById('elec-price').textContent = elecPrice.toFixed(2);
 
-    // 設定ラベル
-    document.getElementById('lbl-co2').textContent = config.kgCo2PerKwh;
-    document.getElementById('lbl-water-yen').textContent = config.yenPerM3;
-    document.getElementById('lbl-water-ml').textContent = config.mlPerToken;
-    document.getElementById('lbl-elec-yen').textContent = config.yenPerKwh;
-    document.getElementById('lbl-elec-wh').textContent = config.whPerRequest;
+    // 設定値表示 (存在する場合のみ)
+    if(document.getElementById('lbl-co2')) document.getElementById('lbl-co2').textContent = config.kgCo2PerKwh;
   });
 }
 
 document.addEventListener('DOMContentLoaded', updateUI);
 
+// 更新ボタン
 document.getElementById('reload-btn').addEventListener('click', () => {
   updateUI();
   const btn = document.getElementById('reload-btn');
@@ -75,6 +63,7 @@ document.getElementById('reload-btn').addEventListener('click', () => {
   }, 400);
 });
 
+// 設定ボタン
 document.getElementById('settings-btn').addEventListener('click', () => {
   if (chrome.runtime.openOptionsPage) {
     chrome.runtime.openOptionsPage().catch(() => {
@@ -85,14 +74,48 @@ document.getElementById('settings-btn').addEventListener('click', () => {
   }
 });
 
+// リセットボタン
 document.getElementById('reset-btn').addEventListener('click', () => {
   if (confirm('統計データをリセットしますか？')) {
     chrome.storage.local.set({
       totalRequests: 0,
       totalTokens: 0,
-      totalAvoided: 0 // 削減実績もリセット
-    }, () => {
-      updateUI();
-    });
+      totalAvoided: 0
+    }, updateUI);
   }
+});
+
+// ▼▼▼ 画像保存機能 (PNG Export) ▼▼▼
+document.getElementById('share-btn').addEventListener('click', () => {
+  const target = document.getElementById('capture-area');
+  
+  // ボタンの文字を一時的に変更
+  const btn = document.getElementById('share-btn');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '📸 生成中...';
+  btn.disabled = true;
+
+  html2canvas(target, {
+    scale: 2, // 高解像度で出力
+    backgroundColor: "#f4f7f6", // 背景色を指定
+    ignoreElements: (element) => {
+      // data-html2canvas-ignore 属性がある要素は除外
+      return element.hasAttribute('data-html2canvas-ignore');
+    }
+  }).then(canvas => {
+    // ダウンロードリンクを作成
+    const link = document.createElement('a');
+    link.download = `ai-eco-stats_${new Date().toISOString().slice(0,10)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    // ボタンを元に戻す
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }).catch(err => {
+    console.error('Capture failed:', err);
+    alert('画像の生成に失敗しました');
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  });
 });

@@ -2,167 +2,231 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <!-- html2canvasを読み込み -->
+  <script src="html2canvas.min.js"></script>
   <style>
+    /* 全体のスタイル定義 */
     body {
-      width: 340px;
-      font-family: "Helvetica Neue", Arial, sans-serif;
-      padding: 15px;
+      width: 380px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7f6;
       color: #333;
-      background-color: #f9f9f9;
     }
+
+    /* 画像化するエリア */
+    #capture-area {
+      padding: 20px;
+      background-color: #f4f7f6;
+      position: relative;
+    }
+
+    /* ヘッダー */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #ddd;
-      padding-bottom: 10px;
-      margin-bottom: 15px;
+      margin-bottom: 20px;
     }
-    h2 {
-      margin: 0;
-      font-size: 16px;
+    .app-title {
+      font-size: 18px;
+      font-weight: 800;
       color: #2c3e50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .header-icons {
       display: flex;
-      gap: 10px;
+      gap: 12px;
     }
     .icon-btn {
       cursor: pointer;
       font-size: 18px;
-      color: #7f8c8d;
       background: none;
       border: none;
       padding: 0;
-      transition: color 0.2s;
+      color: #95a5a6;
+      transition: color 0.3s;
     }
-    .icon-btn:hover {
-      color: #2980b9;
+    .icon-btn:hover { color: #2980b9; }
+
+    /* カード共通デザイン */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 15px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+      transition: transform 0.2s;
     }
-    .stat-box {
-      background: #fff;
-      padding: 12px;
-      margin-bottom: 10px;
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    }
+
+    /* 貢献度カード（特別仕様） */
+    .card.contribution {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .card.contribution .label { color: rgba(255,255,255,0.9); }
+    .card.contribution .value { color: white; font-size: 32px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .card.contribution .sub-stats {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 8px;
+      font-size: 11px;
+      background: rgba(255,255,255,0.2);
+      padding: 6px;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    /* 削減実績用の特別スタイル */
-    .stat-box.contribution {
-      background: #e8f8f5; /* 薄い緑 */
-      border: 1px solid #a2d9ce;
+
+    /* グリッドレイアウト */
+    .grid-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
     }
+
+    /* ラベルと数値 */
     .label {
-      font-size: 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       color: #7f8c8d;
-      margin-bottom: 4px;
-    }
-    .contribution .label {
-      color: #16a085;
-      font-weight: bold;
+      margin-bottom: 6px;
+      font-weight: 600;
     }
     .value {
-      font-size: 20px;
-      font-weight: bold;
-      color: #2980b9;
+      font-size: 22px;
+      font-weight: 800;
+      color: #2c3e50;
     }
-    .eco-cost {
-      color: #e74c3c;
+    .unit { font-size: 12px; color: #7f8c8d; font-weight: normal; margin-left: 2px; }
+    
+    /* エココストの強調色 */
+    .cost-val { color: #e74c3c; }
+    .price-sub { font-size: 12px; color: #95a5a6; font-weight: bold; }
+
+    /* フッターアクションエリア */
+    .actions {
+      padding: 0 20px 20px 20px;
+      display: flex;
+      gap: 10px;
     }
-    .eco-saved {
-      color: #27ae60; /* 緑色の文字 */
-    }
-    .price-tag {
-      font-size: 14px;
-      color: #27ae60;
-      font-weight: bold;
-      margin-left: 8px;
-    }
-    .note {
-      font-size: 10px;
-      color: #999;
-      margin-top: 5px;
-      line-height: 1.4;
-    }
-    button.reset {
-      background-color: #95a5a6;
-      color: white;
+    button.action-btn {
+      flex: 1;
+      padding: 10px;
       border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
+      border-radius: 8px;
+      font-weight: bold;
       cursor: pointer;
       font-size: 12px;
-      margin-top: 5px;
-      width: 100%;
+      transition: background 0.2s;
     }
-    button.reset:hover {
-      background-color: #7f8c8d;
+    .btn-share {
+      background-color: #2c3e50;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-share:hover { background-color: #34495e; }
+    .btn-reset {
+      background-color: #ecf0f1;
+      color: #7f8c8d;
+    }
+    .btn-reset:hover { background-color: #bdc3c7; }
+
+    /* 設定値の小さな表示 */
+    .meta-info {
+      font-size: 9px;
+      color: #bdc3c7;
+      text-align: right;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h2>🤖 AI Eco Monitor</h2>
-    <div class="header-icons">
-      <button id="reload-btn" class="icon-btn" title="更新">↻</button>
-      <button id="settings-btn" class="icon-btn" title="設定">⚙️</button>
+
+  <!-- ここから下が画像化されます -->
+  <div id="capture-area">
+    <div class="header">
+      <div class="app-title">
+        <span>🤖</span> AI Eco Monitor
+      </div>
+      <div class="header-icons" data-html2canvas-ignore="true">
+        <!-- 無視属性をつけて画像化のときは消す -->
+        <button id="reload-btn" class="icon-btn" title="更新">↻</button>
+        <button id="settings-btn" class="icon-btn" title="設定">⚙️</button>
+      </div>
+    </div>
+
+    <!-- 貢献度メインカード -->
+    <div class="card contribution">
+      <div class="label">Total Waste Avoided</div>
+      <div class="value"><span id="avoided-count">0</span><span class="unit" style="color:white">times</span></div>
+      <div class="sub-stats">
+        <span>📉 -<span id="saved-co2">0</span> kg CO2</span>
+        <span>⚡ -<span id="saved-wh">0</span> Wh</span>
+      </div>
+    </div>
+
+    <!-- CO2排出量 -->
+    <div class="card" style="border-left: 5px solid #e74c3c;">
+      <div class="label">Carbon Footprint</div>
+      <div class="value cost-val"><span id="co2-cost">0</span><span class="unit">kg-CO2</span></div>
+      <div class="meta-info">Coef: <span id="lbl-co2">0.8</span></div>
+    </div>
+
+    <!-- 2カラムグリッド -->
+    <div class="grid-row">
+      <!-- 水 -->
+      <div class="card">
+        <div class="label">💧 Water</div>
+        <div class="value"><span id="water-cost">0</span><span class="unit">L</span></div>
+        <div class="price-sub">¥<span id="water-price">0</span></div>
+      </div>
+      <!-- 電気 -->
+      <div class="card">
+        <div class="label">⚡ Energy</div>
+        <div class="value"><span id="elec-cost">0</span><span class="unit">Wh</span></div>
+        <div class="price-sub">¥<span id="elec-price">0</span></div>
+      </div>
+    </div>
+
+    <!-- 基本統計 -->
+    <div class="grid-row" style="margin-bottom:0;">
+      <div class="card" style="background:#fdfdfd;">
+        <div class="label">Requests</div>
+        <div class="value" style="font-size:18px" id="req-count">0</div>
+      </div>
+      <div class="card" style="background:#fdfdfd;">
+        <div class="label">Tokens</div>
+        <div class="value" style="font-size:18px" id="token-count">0</div>
+      </div>
+    </div>
+    
+    <div style="text-align:center; font-size:9px; color:#ccc; margin-top:10px;">
+      Generated by AI Eco Monitor
     </div>
   </div>
+  <!-- 画像化エリアここまで -->
 
-  <!-- 削減実績エリア (新規追加) -->
-  <div class="stat-box contribution">
-    <div class="label">🌱 削減できた環境コスト</div>
-    <div class="value eco-saved">
-      <span id="avoided-count">0</span> 回回避
-    </div>
-    <div class="note" style="color:#138d75;">
-      削減CO2: <span id="saved-co2">0</span> kg<br>
-      削減電力: <span id="saved-wh">0</span> Wh
-    </div>
+  <div class="actions">
+    <button id="share-btn" class="action-btn btn-share">
+      <span>📷</span> 画像として保存
+    </button>
+    <button id="reset-btn" class="action-btn btn-reset">リセット</button>
   </div>
-
-  <div class="stat-box">
-    <div class="label">総リクエスト回数</div>
-    <div class="value" id="req-count">0</div>
-  </div>
-
-  <div class="stat-box">
-    <div class="label">推定総トークン数 (Input/Output)</div>
-    <div class="value" id="token-count">0</div>
-  </div>
-
-  <div class="stat-box">
-    <div class="label">☁️ 推定CO2排出量</div>
-    <div class="value eco-cost"><span id="co2-cost">0</span> kg</div>
-    <div class="note">
-      係数: <span id="lbl-co2">0.8</span> kg/kWh
-    </div>
-  </div>
-
-  <div class="stat-box">
-    <div class="label">💧 推定水消費量</div>
-    <div>
-      <span class="value eco-cost" id="water-cost">0</span> L
-      <span class="price-tag"> (約 <span id="water-price">0</span> 円)</span>
-    </div>
-    <div class="note">
-      単価: <span id="lbl-water-yen">200</span>円/m³<br>
-      消費: 1トークン <span id="lbl-water-ml">3.75</span>ml
-    </div>
-  </div>
-
-  <div class="stat-box">
-    <div class="label">⚡ 推定電力消費量</div>
-    <div>
-      <span class="value eco-cost" id="elec-cost">0</span> Wh
-      <span class="price-tag"> (約 <span id="elec-price">0</span> 円)</span>
-    </div>
-    <div class="note">
-      単価: <span id="lbl-elec-yen">24</span>円/kWh<br>
-      消費: 1リク <span id="lbl-elec-wh">18</span>Wh
-    </div>
-  </div>
-
-  <button id="reset-btn" class="reset">データをリセット</button>
 
   <script src="popup.js"></script>
 </body>
